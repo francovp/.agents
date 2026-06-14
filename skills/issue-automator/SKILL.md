@@ -6,7 +6,7 @@ description: >-
 
 ## Hard Rules
 
-1. Always work on the oldest open GitHub issue, not just the oldest issue overall.
+1. If the user explicitly provides a GitHub issue number (e.g. `#42`, `issue 42`, `GH-42`), use that specific issue. Otherwise, work on the oldest open GitHub issue.
 2. Process only one issue by default.
 3. Process a second issue only if the first issue ends with explicit outcome `LOCAL_DEADLOCK`.
 4. Never process more than 2 GitHub issues in one run.
@@ -26,10 +26,12 @@ description: >-
 Follow these steps in strict chronological order to automate issue resolution:
 
 ### Step 1: Pre-flight & Selection
-1. Run `scripts/get-oldest-issue.sh` to fetch the oldest open GitHub issue.
+1. Determine the target issue:
+   - **If the user specifies an issue number** (via `#42`, `issue 42`, `GH-42`, or similar): fetch that specific issue with `gh issue view <NUMBER> --json number,title,createdAt,labels,url`.
+   - **If no issue number is given**: run `scripts/get-oldest-issue.sh` to fetch the oldest open GitHub issue.
 2. Select it as the primary issue.
 3. Do not fetch, inspect, select, plan, or create TODOs for any second issue at this stage.
-4. If no open GitHub issues exist, stop execution immediately.
+4. If no open GitHub issues exist (and none was specified), stop execution immediately.
 5. For the primary issue:
    - Check any linked or related Linear issue.
    - Check all open, closed, merged, and draft PRs that reference the issue.
