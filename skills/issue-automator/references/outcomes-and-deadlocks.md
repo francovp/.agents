@@ -15,12 +15,12 @@ Every processed issue must end with exactly one of these outcomes:
 7. `NEEDS_USER`: Safe progress requires user input.
 8. `AMBIGUOUS`: Safe progress requires resolving ambiguity.
 
-Only a `LOCAL_DEADLOCK` on the primary issue permits processing the second issue.
+Only a `LOCAL_DEADLOCK` on the primary issue, or an `IN_REVIEW` outcome with no agent writes performed, permits processing the second issue.
 
 ## Deadlock Policy
 
 1. **Local Deadlock Definition**: `LOCAL_DEADLOCK` means the issue is blocked by an issue-specific blocker that does not prevent safe work on a different issue.
-2. **Fallback Allowance**: A local deadlock on the primary issue allows exactly one fallback issue. A local deadlock on the fallback issue stops the run.
+2. **Fallback Allowance**: A local deadlock on the primary issue allows exactly one fallback issue. An `IN_REVIEW` outcome with no agent writes also allows exactly one fallback issue. A local deadlock or `IN_REVIEW` (no writes) on the fallback issue stops the run.
 3. **Local Blocker Examples**:
    - Failed checks that do not converge after the retry budget.
    - Preview deploy failures after retry budget.
