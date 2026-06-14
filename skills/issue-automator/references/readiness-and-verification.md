@@ -16,7 +16,7 @@ A PR is ready to transition to `In review` only if all of these are true:
 
 ## Preview and E2E
 
-1. **Preview URL Scheme**: Construct the preview URL as `https://cabros-crypto-bot-telegram-pr-${PR_NUMBER}.onrender.com`.
+1. **Preview URL Scheme**: Construct the preview URL as `https://${RENDER_SERVICE_NAME}-pr-${PR_NUMBER}.onrender.com`. The `RENDER_SERVICE_NAME` is resolved from the `$RENDER_SERVICE_NAME` env var (natively set by Render), falling back to the GitHub repository name, then to a hardcoded default.
 2. **Deploy Proof**: Perform a direct `curl` call against the preview URL as final deploy proof.
 3. **Healthcheck Ping**: Use `/healthcheck` for signaling status.
 4. **Root Route 404s**: Treat `GET /` returning `404` as acceptable only if the service intentionally lacks a root route.

@@ -10,7 +10,11 @@ if [ "$#" -lt 1 ]; then
 fi
 
 PR_NUMBER="$1"
-PREVIEW_URL="https://cabros-crypto-bot-telegram-pr-${PR_NUMBER}.onrender.com"
+
+# Determine Render service name: RENDER_SERVICE_NAME env var > repo name > hardcoded fallback
+RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME:-$(gh repo view --json name -q '.name' 2>/dev/null)}"
+
+PREVIEW_URL="https://${RENDER_SERVICE_NAME}-pr-${PR_NUMBER}.onrender.com"
 HEALTHCHECK_URL="${PREVIEW_URL}/healthcheck"
 
 echo "Verifying Render preview deployment for PR #${PR_NUMBER}..."
