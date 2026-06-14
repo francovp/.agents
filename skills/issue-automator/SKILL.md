@@ -8,11 +8,11 @@ description: >-
 
 1. If the user explicitly provides a GitHub issue number (e.g. `#42`, `issue 42`, `GH-42`), use that specific issue. Otherwise, work on the oldest open GitHub issue.
 2. Process only one issue by default.
-3. Process a second issue only if the first issue ends with explicit outcome `LOCAL_DEADLOCK`.
+3. Process a second issue only if the first issue ends with explicit outcome `LOCAL_DEADLOCK` or `IN_REVIEW` with no agent writes.
 4. Never process more than 2 GitHub issues in one run.
 5. Never process, inspect deeply, plan, or create TODOs for a third issue.
 6. Never build an unbounded work queue.
-7. Never continue to another issue after `DONE`, `IN_REVIEW`, `SHIPPED`, `SYNCED`, `GLOBAL_BLOCKED`, `NEEDS_USER`, or `AMBIGUOUS`.
+7. Never continue to another issue after `DONE`, `SHIPPED`, `SYNCED`, `GLOBAL_BLOCKED`, `NEEDS_USER`, or `AMBIGUOUS`. For `IN_REVIEW`, stop only if the agent actively produced a PR or made changes; if the issue was already in review with no code/PR/Linear writes needed, treat it like `LOCAL_DEADLOCK` and continue to the next oldest issue.
 8. Never create duplicate Linear issues or duplicate PRs.
 9. Treat `agent-working` as an ownership claim, not as a decorative label.
 10. Use the GitHub issue number as the dedupe key for Linear.
@@ -79,7 +79,12 @@ Follow these steps in strict chronological order to automate issue resolution:
    - Re-run `scripts/get-oldest-issue.sh` to fetch the next oldest open issue.
    - Process this second issue as the fallback issue.
    - If no fallback issue exists or if the fallback issue fails, stop execution.
-2. If the primary issue ends with any other outcome, stop execution immediately.
+2. If the primary issue ends with `IN_REVIEW` and the agent made **no code/PR/Linear writes** (the issue was already handled):
+   - Do not modify the issue, PR, or Linear state — everything is already correct.
+   - Re-run `scripts/get-oldest-issue.sh` to fetch the next oldest open issue.
+   - Process this second issue as the fallback issue.
+   - If no fallback issue exists or if the fallback issue fails, stop execution.
+3. If the primary issue ends with any other outcome, or if `IN_REVIEW` with agent writes, stop execution immediately.
 
 ### Step 7: Finalization & Sync
 1. Remove `agent-working` from the GitHub issue and PR.
@@ -91,7 +96,7 @@ Follow these steps in strict chronological order to automate issue resolution:
 
 Always include a final summary of execution containing:
 1. Primary issue processed and its outcome.
-2. Fallback issue processed (only if primary ended in `LOCAL_DEADLOCK`) and its outcome.
+2. Fallback issue processed (only if primary ended in `LOCAL_DEADLOCK` or `IN_REVIEW` with no agent writes) and its outcome.
 3. Tools utilized (`gh`, `linear`, MCP, or scripts).
 4. Details of any global blockers.
 5. Performed verification steps (CI, reviews, Render preview ping, and E2E).
