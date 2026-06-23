@@ -41,7 +41,7 @@ Score each idea using:
 ## Duplicate Rules
 
 - If an open issue already covers the idea, update it instead of opening another issue.
-- If a PR by `@francovp` or `@codex` already addresses it, skip the proposal.
+- If any PR already addresses the idea, skip the proposal.
 - If a PR is close but incomplete, comment on it and continue; reopen only if that is the best route.
 - Merge overlapping ideas into one issue when they target the same user outcome.
 

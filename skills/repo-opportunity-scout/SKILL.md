@@ -23,7 +23,7 @@ Use this skill to turn a repository review into concrete, deduplicated GitHub is
 - Inspect open pull requests before proposing anything new.
 - If needed, check recently closed issues and PRs for near matches.
 - If an open issue already covers the idea, update that issue instead of creating a duplicate.
-- If a PR by `@francovp` or `@codex` already resolves it, skip the proposal and continue.
+- If any PR already resolves the idea, skip the proposal and continue.
 - If a PR is close but incomplete, comment on it and continue; reopen only when that is the best path.
 
 ### 3. Find opportunities
