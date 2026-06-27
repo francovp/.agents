@@ -21,6 +21,35 @@ description: >-
 13. Distinguish local blockers from global blockers.
 14. Stop cleanly on global blockers, ambiguity, or missing ownership.
 
+## Notification Webhook
+
+The skill sends notifications to a Telegram bot webhook for alert-worthy events. The webhook endpoint expects a JSON payload with `x-api-key` auth header.
+
+**Configuration** — set these environment variables before running the skill:
+- `NOTIFY_WEBHOOK_URL` — defaults to `https://cabros-crypto-bot-telegram.onrender.com/api/webhook/message`
+- `NOTIFY_API_KEY` — the `x-api-key` header value (required)
+- `NOTIFY_CHANNELS` — comma-separated, defaults to `telegram,whatsapp`
+- `NOTIFY_TELEGRAM_CHAT_ID` — defaults to `-1001234567890`
+- `NOTIFY_WHATSAPP_CHAT_ID` — defaults to `120363422033474991@g.us`
+
+**Notification helper** — use this curl template whenever a notification is required:
+
+```bash
+curl --location "${NOTIFY_WEBHOOK_URL:-https://cabros-crypto-bot-telegram.onrender.com/api/webhook/message}" \
+  --header 'Content-Type: application/json' \
+  --header "x-api-key: ${NOTIFY_API_KEY}" \
+  --data-raw '{
+    "message": "'"${NOTIFY_MESSAGE}"'",
+    "channels": ["telegram", "whatsapp"],
+    "telegramChatId": "'"${NOTIFY_TELEGRAM_CHAT_ID:--1001234567890}"'",
+    "whatsappChatId": "'"${NOTIFY_WHATSAPP_CHAT_ID:-120363422033474991@g.us}"'"
+  }'
+```
+
+**Events that trigger a notification:**
+1. **Global deadlock** — when `GLOBAL_BLOCKED` outcome is set, alerting humans that tooling/auth/infra prevents safe work.
+2. **PR in review** — when a PR is moved to `In review` in Step 7, notifying that human review is needed.
+
 ## Procedural Workflow
 
 Follow these steps in strict chronological order to automate issue resolution:
@@ -91,6 +120,21 @@ Follow these steps in strict chronological order to automate issue resolution:
 2. Add the `In review` label to the GitHub issue and PR.
 3. Move the Linear issue to the `In review` column.
 4. Record the final outcome according to the contract in `references/outcomes-and-deadlocks.md`.
+5. Send an `In review` notification to alert humans that a PR needs review:
+   ```bash
+   PR_URL="$(gh pr view --json url --jq .url 2>/dev/null || echo "N/A")"
+   ISSUE_NUM="$(gh issue view --json number --jq .number 2>/dev/null || echo "N/A")"
+   NOTIFY_MESSAGE="[IN_REVIEW] PR ready for review — Issue #${ISSUE_NUM}. Review at: ${PR_URL}" \
+     curl --location "${NOTIFY_WEBHOOK_URL:-https://cabros-crypto-bot-telegram.onrender.com/api/webhook/message}" \
+     --header 'Content-Type: application/json' \
+     --header "x-api-key: ${NOTIFY_API_KEY}" \
+     --data-raw '{
+       "message": "'"${NOTIFY_MESSAGE}"'",
+       "channels": ["telegram", "whatsapp"],
+       "telegramChatId": "'"${NOTIFY_TELEGRAM_CHAT_ID:--1001234567890}"'",
+       "whatsappChatId": "'"${NOTIFY_WHATSAPP_CHAT_ID:-120363422033474991@g.us}"'"
+     }'
+   ```
 
 ## Outcome Summary Contract
 
@@ -104,7 +148,21 @@ Always include a final summary of execution containing:
 ## Error Handling & Troubleshooting
 
 Refer to this section when encountering execution issues:
-- **CLI Authentication Failures**: If `gh` or `linear` CLI calls fail due to auth, check if the respective environment tokens (`GITHUB_TOKEN`, `LINEAR_API_KEY`) are loaded. If CLI is unavailable, fallback to MCP commands. If both fail, end with `GLOBAL_BLOCKED`.
+- **CLI Authentication Failures**: If `gh` or `linear` CLI calls fail due to auth, check if the respective environment tokens (`GITHUB_TOKEN`, `LINEAR_API_KEY`) are loaded. If CLI is unavailable, fallback to MCP commands. If both fail:
+  - Send a global-deadlock notification:
+    ```bash
+    NOTIFY_MESSAGE="[GLOBAL_BLOCKED] Issue automator halted: CLI + MCP auth both failed for $repo/$issue. Human intervention required." \
+      curl --location "${NOTIFY_WEBHOOK_URL:-https://cabros-crypto-bot-telegram.onrender.com/api/webhook/message}" \
+      --header 'Content-Type: application/json' \
+      --header "x-api-key: ${NOTIFY_API_KEY}" \
+      --data-raw '{
+        "message": "'"${NOTIFY_MESSAGE}"'",
+        "channels": ["telegram", "whatsapp"],
+        "telegramChatId": "'"${NOTIFY_TELEGRAM_CHAT_ID:--1001234567890}"'",
+        "whatsappChatId": "'"${NOTIFY_WHATSAPP_CHAT_ID:-120363422033474991@g.us}"'"
+      }'
+    ```
+  - Then end with outcome `GLOBAL_BLOCKED`.
 - **Merge Conflicts**: If branch checkout or pushes fail due to conflicts, pull from `master`, resolve conflicts locally, and re-run tests. If resolving conflicts introduces ambiguity, end with `AMBIGUOUS`.
 - **Render Preview deployment timeout**: If `scripts/verify-preview.sh` fails after 3 attempts, inspect the Render logs via the Render dashboard. If it is an infrastructure timeout, wait and retry. If it is an application error/crash, treat it as a `LOCAL_DEADLOCK`.
 - **Takeover Conflict**: Do not force-remove the `agent-working` label of an active run. Wait or exit with `NEEDS_USER` to allow coordination.
