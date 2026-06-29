@@ -6,6 +6,10 @@
 
 # Saves the active gh user for later restoration.
 save_gh_user() {
+  if [ -n "${GH_AUTH_TMP:-}" ] && [ -f "$GH_AUTH_TMP" ]; then
+    return 0
+  fi
+
   GH_AUTH_TMP=$(mktemp /tmp/gh-auth-XXXXXX 2>/dev/null || mktemp -t gh-auth 2>/dev/null)
   gh auth status --json hosts --jq '.hosts["github.com"][] | select(.active) | .login' > "$GH_AUTH_TMP" 2>/dev/null || echo "" > "$GH_AUTH_TMP"
 }

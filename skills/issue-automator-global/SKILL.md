@@ -1,7 +1,7 @@
 ---
 name: issue-automator-global
 description: >-
-  Automates the end-to-end processing of open GitHub issues for the current repository. Use when the user requests automating issue resolution, synchronizing Jira tracker states, verifying Render preview deployments, merging ready PRs without human review, or resolving review threads. Do not use for repositories other than the current repository or for general Git operations unrelated to issue lifecycle automation.
+  Automates the end-to-end processing of open GitHub issues for the current repository. Use when the user requests automating issue resolution, synchronizing Jira tracker states, validating project E2E verification, merging ready PRs without human review, or resolving review threads. Do not use for repositories other than the current repository or for general Git operations unrelated to issue lifecycle automation.
 ---
 
 ## Hard Rules
@@ -87,7 +87,7 @@ Follow these steps in strict chronological order to automate issue resolution:
 ### Step 3: Align with Jira Tracker
 1. Check if a linked Jira issue exists. Refer to `references/outcomes-and-deadlocks.md` for specific tracker sync rules.
 2. If no Jira issue exists:
-   - **Check Atlassian Jira authentication** — try `acli jira me` (or equivalent) to verify CLI auth. If CLI fails, fall back to Jira MCP tools. If **both** CLI and MCP are unauthhenticated, skip Jira issue creation entirely: set `JIRA_ISSUE_ID=""` and proceed without Jira tracking. **Missing Jira auth is a local skip, NOT a global blocker** — continue processing the GitHub issue normally.
+   - **Check Atlassian Jira authentication** — try `acli jira me` (or equivalent) to verify CLI auth. If CLI fails, fall back to Jira MCP tools. If **both** CLI and MCP are unauthenticated, skip Jira issue creation entirely: set `JIRA_ISSUE_ID=""` and proceed without Jira tracking. **Missing Jira auth is a local skip, NOT a global blocker** — continue processing the GitHub issue normally.
    - If authenticated, create a new Jira backlog issue.
    - Use the GitHub issue number as the external dedupe key.
    - Give the issue a concise, action-oriented title.
@@ -110,12 +110,13 @@ Follow these steps in strict chronological order to automate issue resolution:
 ### Step 4: Action Plan & Implementation
 1. Check out a clean branch locally.
 2. Implement the changes matching the issue acceptance criteria.
-3. Run local tests to verify changes:
+3. Run the repository verification commands that apply to the change (including E2E when relevant), using the project's documented commands from CI/README:
    ```bash
-   pnpm test
+   <repo-test-command>
+   <repo-e2e-command>
    ```
 4. If an open PR exists, reuse it. Do not create a parallel PR.
-   - **If reusing an existing PR**, check its title. If the title is missing the Jira ID suffix (e.g., `(SREF-42)`), update the PR title with `gh pr edit <NUMBER> --title "original title (SREF-42)"` to append it. Also update the PR body to include the Jira ID in the References section.
+   - **If reusing an existing PR**, update `context/<git-branch-name>.md` so the first line includes Jira suffix (for example `(SREF-42)`) and the References section includes Jira, then run the `create-pr` skill to update PR title/body from context.
 5. **Create the context file** `context/<git-branch-name>.md` with the branch summary:
    - **First line (title)**: MUST end with `(JIRA_ISSUE_ID)` if `JIRA_ISSUE_ID` is set. Example: `feat: add volume confirmation endpoint (SREF-42)`. If no Jira ID yet, omit the suffix.
    - **Body sections**: Use the repository's PR description format (`Summary`, `Key Changes`, `Technical Implementation`, `Testing`, `References`).
@@ -128,21 +129,17 @@ Follow these steps in strict chronological order to automate issue resolution:
    gh pr edit "$PR_NUMBER" --add-label "agent-working"
    ```
 8. **Verify the PR title** contains the Jira ID suffix `(JIRA_ISSUE_ID)`. If `JIRA_ISSUE_ID` is set and the PR title is missing it, fix it:
-   ```bash
-   CURRENT_TITLE="$(gh pr view "$PR_NUMBER" --json title --jq .title)"
-   gh pr edit "$PR_NUMBER" --title "${CURRENT_TITLE} (${JIRA_ISSUE_ID})"
-   ```
+   - Update the first line of `context/<git-branch-name>.md` to include `(JIRA_ISSUE_ID)`.
+   - Re-run the `create-pr` skill so PR title/body stay consistent with context.
 
-### Step 5: Verification & Deploy Check
+### Step 5: Verification & E2E Check
 1. Ensure the PR meets all criteria in `references/readiness-and-verification.md`.
-2. Retrieve the PR number and run `scripts/verify-preview.sh <PR_NUMBER>` to verify the Render preview deployment is live and healthy.
+2. Run project E2E verification using repository-specific commands (or `scripts/verify-e2e.sh "<repo-e2e-command>"`).
 3. Address any unresolved discussions, especially review comments from `@copilot`.
 4. Observe the quiet window and retry policies specified in `references/readiness-and-verification.md`.
 5. **Verify the PR title has the Jira ID suffix**: If `JIRA_ISSUE_ID` is set and the PR title is missing `(JIRA_ISSUE_ID)` at the end, fix it:
-   ```bash
-   CURRENT_TITLE="$(gh pr view "$PR_NUMBER" --json title --jq .title)"
-   gh pr edit "$PR_NUMBER" --title "${CURRENT_TITLE} (${JIRA_ISSUE_ID})"
-   ```
+   - Update the first line of `context/<git-branch-name>.md` to include `(JIRA_ISSUE_ID)`.
+   - Re-run the `create-pr` skill to sync PR title/body from context.
 6. If the PR is ready to land and the agent is confident no human review is needed:
    - Merge the PR.
    - **Remove `agent-working` from the issue and the PR**:
@@ -173,10 +170,8 @@ If the primary issue ends with any other outcome (including `IN_REVIEW` with age
 ### Step 7: Human Review Handoff & Sync
 1. Use this path only when human review is needed and the PR should not be merged directly.
 2. **Verify the PR title has the Jira ID suffix** (same as Step 5). If `JIRA_ISSUE_ID` is set and the PR title is missing `(JIRA_ISSUE_ID)`, fix it:
-   ```bash
-   CURRENT_TITLE="$(gh pr view "$PR_NUMBER" --json title --jq .title)"
-   gh pr edit "$PR_NUMBER" --title "${CURRENT_TITLE} (${JIRA_ISSUE_ID})"
-   ```
+   - Update the first line of `context/<git-branch-name>.md` to include `(JIRA_ISSUE_ID)`.
+   - Re-run the `create-pr` skill to sync PR title/body from context.
 3. **Remove `agent-working` from the GitHub issue and PR**:
    ```bash
    ISSUE_NUMBER="$(gh issue view --json number --jq .number)"
@@ -217,7 +212,7 @@ Always include a final summary of execution containing:
 2. Outcome of the first non-skip issue, if any (issues with skip outcomes `LOCAL_DEADLOCK` or `IN_REVIEW` no-writes are counted as skipped and listed).
 3. Tools utilized (`gh`, `acli jira`, MCP, or scripts).
 4. Details of any global blockers.
-5. Performed verification steps (CI, reviews, Render preview ping, and E2E).
+5. Performed verification steps (CI, reviews, and project E2E verification).
 6. **Jira issue ID** associated with each processed issue (e.g., `SREF-42`).
 7. **`agent-working` lifecycle confirmation**: For each issue confirm: label was added at start, and removed at end (merged or `In review`).
 
@@ -247,8 +242,8 @@ Refer to this section when encountering execution issues:
   - Then end with outcome `GLOBAL_BLOCKED`.
 - **Jira (acli jira) Authentication Failures**: If `acli jira` CLI calls fail due to auth:
   - Fall back to Jira MCP tools.
-  - If MCP tools are also unauthhenticated, **skip all Jira operations**: set `JIRA_ISSUE_ID=""`, do not create or sync Jira issues, and proceed with only GitHub/PR workflows.
+  - If MCP tools are also unauthenticated, **skip all Jira operations**: set `JIRA_ISSUE_ID=""`, do not create or sync Jira issues, and proceed with only GitHub/PR workflows.
   - **Missing Jira auth is NOT a global blocker** — unlike GitHub auth, Jira is optional. Continue processing the issue without Jira tracking.
 - **Merge Conflicts**: If branch checkout or pushes fail due to conflicts, pull from `master`, resolve conflicts locally, and re-run tests. If resolving conflicts introduces ambiguity, end with `AMBIGUOUS`.
-- **Render Preview deployment timeout**: If `scripts/verify-preview.sh` fails after 3 attempts, inspect the Render logs via the Render dashboard. If it is an infrastructure timeout, wait and retry. If it is an application error/crash, treat it as a `LOCAL_DEADLOCK`.
+- **E2E verification timeout/failures**: If `scripts/verify-e2e.sh` (or repo E2E command) fails after 3 attempts, inspect project test logs and CI outputs. If it is an infrastructure timeout, wait and retry. If it is an application error/crash, treat it as a `LOCAL_DEADLOCK`.
 - **Takeover Conflict**: Do not force-remove the `agent-working` label of an active run. Wait or exit with `NEEDS_USER` to allow coordination.
