@@ -2,17 +2,19 @@
 
 This reference defines the verification rules, readiness criteria, and quiet window policies for PR submission.
 
-## Readiness Gate
+## Merge Gate
 
-A PR is ready to transition to `In review` only if all of these are true:
+A PR is ready to merge directly only if all of these are true and the agent is confident no human review is needed:
 
-1. **No Unresolved Discussions**: No open discussions or review threads remain, especially from `@francovp` and `@codex`.
+1. **No Unresolved Discussions**: No open discussions or review threads remain, especially from `@copilot`.
 2. **All Checks Green**: All required checks are green or conclusively non-blocking.
 3. **Preview Live**: The preview deploy is live and operational.
 4. **Direct Verification**: Direct `curl` verification against the Render preview succeeds.
 5. **Criteria Matched**: The implementation matches all issue acceptance criteria.
 6. **No Ownership Conflict**: No active ownership conflicts remain.
-7. **Stability Period**: The head SHA has been stable for at least 5 minutes with no new Codex reviews or unresolved threads appearing.
+7. **Stability Period**: The head SHA has been stable for at least 5 minutes with no new Copilot reviews or unresolved threads appearing.
+
+If any criterion is uncertain, keep the same gate but hand the PR off through `In review` instead of merging it directly.
 
 ## Preview and E2E
 
@@ -36,5 +38,5 @@ A PR is ready to transition to `In review` only if all of these are true:
 
 1. **Window Duration**: After the latest commit, wait a quiet window of 5 minutes before calling the PR clean or ready.
 2. **Midpoint & Endpoint Checks**: During the quiet window, re-check reviews and threads once around the midpoint (2.5 minutes) and once at the end.
-3. **Reset Trigger**: If Codex posts a new review or a new thread appears, reset the quiet window from that event or from the new commit (whichever is later).
+3. **Reset Trigger**: If Copilot posts a new review or a new thread appears, reset the quiet window from that event or from the new commit (whichever is later).
 4. **Instability Handling**: If the quiet window cannot complete due to repeated issue-specific instability, end with outcome `LOCAL_DEADLOCK`.

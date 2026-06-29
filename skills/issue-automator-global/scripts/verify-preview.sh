@@ -4,12 +4,18 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/gh-auth-utils.sh"
+
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <PR_NUMBER>" >&2
   exit 1
 fi
 
 PR_NUMBER="$1"
+
+trap 'restore_gh_user' EXIT
+ensure_repo_access_with_fallback
 
 # Determine Render service name: RENDER_SERVICE_NAME env var > repo name > hardcoded fallback
 RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME:-$(gh repo view --json name -q '.name' 2>/dev/null)}"
