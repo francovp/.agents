@@ -1,0 +1,19 @@
+{
+  "name": "personal-plugins",
+  "owner": {
+    "name": "Franco Valerio",
+    "email": "franco.gvp@hotmail.com"
+  },
+  "metadata": {
+    "description": "Marketplace de plugins personal",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "general",
+      "description": "General-purpose SRE skills for reducing toil and automating engineering workflows across repository analysis, collaboration, release communication, review follow-up, agent capability discovery, and structured content generation.",
+      "version": "0.1.0",
+      "source": "plugins/general"
+    }
+  ]
+}
