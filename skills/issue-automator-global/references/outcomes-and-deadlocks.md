@@ -11,7 +11,7 @@ Every processed issue must end with exactly one of these outcomes:
 3. `SHIPPED`: The code is already on `master` or covered by a merged PR.
 4. `SYNCED`: Only tracker synchronization was needed.
 5. `LOCAL_DEADLOCK`: The issue is blocked by an issue-specific blocker.
-6. `GLOBAL_BLOCKED`: Tooling, auth, repo, CI, Render, Linear, or GitHub access prevents safe work.
+6. `GLOBAL_BLOCKED`: Tooling, auth, repo, CI, Render, or GitHub access prevents safe work.
 7. `NEEDS_USER`: Safe progress requires user input.
 8. `AMBIGUOUS`: Safe progress requires resolving ambiguity.
 
@@ -32,7 +32,7 @@ Only a `LOCAL_DEADLOCK` on the primary issue, or an `IN_REVIEW` outcome with no 
 5. **Ambiguity/User Input**: Issue ambiguity that requires user input is `AMBIGUOUS` or `NEEDS_USER`, not `LOCAL_DEADLOCK`.
 6. **Global Blockers**: Global blockers prevent safe work in general. Examples:
    - Missing authentication for both CLI and MCP paths.
-   - Unavailable GitHub, Linear, CI, Render, or repository tooling.
+   - Unavailable GitHub, CI, Render, or repository tooling.
    - Broken local workspace.
    - Missing repository access.
    - Failures that prevent safe work in general.
