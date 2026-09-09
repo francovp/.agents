@@ -1,7 +1,7 @@
 ---
 name: issue-automator-global
 description: >-
-  Automates the end-to-end processing of open GitHub issues for the current repository. Use when the user requests automating issue resolution, synchronizing Linear tracker states, verifying Render preview deployments, or resolving review threads. Do not use for repositories other than the current repository or for general Git operations unrelated to issue lifecycle automation.
+  Automates the end-to-end processing of open GitHub issues for the current repository. Use when the user requests automating issue resolution, creating GitHub issues, verifying Render preview deployments, or resolving review threads. Creates GitHub issues only — never Linear issues. Do not use for repositories other than the current repository or for general Git operations unrelated to issue lifecycle automation.
 ---
 
 ## Hard Rules
@@ -12,12 +12,12 @@ description: >-
 4. Never process more than 2 GitHub issues in one run.
 5. Never process, inspect deeply, plan, or create TODOs for a third issue.
 6. Never build an unbounded work queue.
-7. Never continue to another issue after `DONE`, `SHIPPED`, `SYNCED`, `GLOBAL_BLOCKED`, `NEEDS_USER`, or `AMBIGUOUS`. For `IN_REVIEW`, stop only if the agent actively produced a PR or made changes; if the issue was already in review with no code/PR/Linear writes needed, treat it like `LOCAL_DEADLOCK` and continue to the next oldest issue.
-8. Never create duplicate Linear issues or duplicate PRs.
+7. Never continue to another issue after `DONE`, `SHIPPED`, `SYNCED`, `GLOBAL_BLOCKED`, `NEEDS_USER`, or `AMBIGUOUS`. For `IN_REVIEW`, stop only if the agent actively produced a PR or made changes; if the issue was already in review with no code/PR/issue writes needed, treat it like `LOCAL_DEADLOCK` and continue to the next oldest issue.
+8. Never create duplicate GitHub issues or duplicate PRs. Before creating any GitHub issue, search open issues to confirm no duplicate exists.
 9. Treat `agent-working` as an ownership claim, not as a decorative label.
-10. Use the GitHub issue number as the dedupe key for Linear.
+10. Use the GitHub issue title and number as the dedupe key before creating any new GitHub issue.
 11. Prefer live repo state over assumptions.
-12. Prefer `gh` and `linear` CLIs over MCP tools when available.
+12. Prefer the `gh` CLI over MCP tools when available.
 13. Distinguish local blockers from global blockers.
 14. Stop cleanly on global blockers, ambiguity, or missing ownership.
 
@@ -62,7 +62,7 @@ Follow these steps in strict chronological order to automate issue resolution:
 3. Do not fetch, inspect, select, plan, or create TODOs for any second issue at this stage.
 4. If no open GitHub issues exist (and none was specified), stop execution immediately.
 5. For the primary issue:
-   - Check any linked or related Linear issue.
+   - Check any linked or related GitHub issues.
    - Check all open, closed, merged, and draft PRs that reference the issue.
    - Check unresolved review threads and CI status if a PR exists.
 
@@ -72,16 +72,15 @@ Follow these steps in strict chronological order to automate issue resolution:
 3. If ownership is unclear or takeover is unsafe, stop and end the issue with outcome `NEEDS_USER`.
 4. If the ownership claim is stale, note the takeover in the issue/PR thread and reclaim it by updating the label.
 
-### Step 3: Align with Linear Tracker
-1. Check if a linked Linear issue exists. Refer to `references/outcomes-and-deadlocks.md` for specific tracker sync rules.
-2. If no Linear issue exists:
-   - Create a new Linear backlog issue.
-   - Use the GitHub issue number as the external dedupe key.
-   - Link the Linear issue back to the GitHub issue.
-   - Add `agent-working` label to the GitHub issue.
-3. If a Linear issue exists:
-   - Evaluate status: if `Blocked`, end the issue with `LOCAL_DEADLOCK`. If `Needs info`, end with `NEEDS_USER`. If `Canceled`/`Duplicate`, sync GitHub and end with `SYNCED`.
-   - If multiple Linear issues remain ambiguous, end with `AMBIGUOUS`.
+### Step 3: Align GitHub Tracker
+1. Ensure the GitHub issue carries the `agent-working` label; add it if missing. Refer to `references/outcomes-and-deadlocks.md` for specific tracker sync rules.
+2. If follow-up work needs its own tracker item, create a new GitHub issue (never a Linear issue):
+   - Search open GitHub issues first and reuse the GitHub issue title/number as the dedupe key.
+   - Link the new GitHub issue back to the primary issue.
+3. Evaluate state:
+   - If the issue is closed as completed or covered elsewhere, sync labels and end with `SYNCED`/`SHIPPED`/`DONE` as appropriate.
+   - If the issue carries a `blocked` label with no safe next action, end with `LOCAL_DEADLOCK`. If it needs info, end with `NEEDS_USER`.
+   - If multiple related GitHub issues remain ambiguous, end with `AMBIGUOUS`.
 
 ### Step 4: Action Plan & Implementation
 1. Check out a clean branch locally.
@@ -104,12 +103,12 @@ Follow these steps in strict chronological order to automate issue resolution:
 ### Step 6: Fallback Trigger (Conditional)
 1. If the primary issue ends with `LOCAL_DEADLOCK`:
    - Write a concise blocker summary on the issue or PR.
-   - Sync GitHub, Linear, and PR states.
+   - Sync GitHub issue and PR states.
    - Re-run `scripts/get-oldest-issue.sh` to fetch the next oldest open issue.
    - Process this second issue as the fallback issue.
    - If no fallback issue exists or if the fallback issue fails, stop execution.
-2. If the primary issue ends with `IN_REVIEW` and the agent made **no code/PR/Linear writes** (the issue was already handled):
-   - Do not modify the issue, PR, or Linear state — everything is already correct.
+2. If the primary issue ends with `IN_REVIEW` and the agent made **no code/PR/issue writes** (the issue was already handled):
+   - Do not modify the issue or PR state — everything is already correct.
    - Re-run `scripts/get-oldest-issue.sh` to fetch the next oldest open issue.
    - Process this second issue as the fallback issue.
    - If no fallback issue exists or if the fallback issue fails, stop execution.
@@ -118,9 +117,8 @@ Follow these steps in strict chronological order to automate issue resolution:
 ### Step 7: Finalization & Sync
 1. Remove `agent-working` from the GitHub issue and PR.
 2. Add the `In review` label to the GitHub issue and PR.
-3. Move the Linear issue to the `In review` column.
-4. Record the final outcome according to the contract in `references/outcomes-and-deadlocks.md`.
-5. Send an `In review` notification to alert humans that a PR needs review:
+3. Record the final outcome according to the contract in `references/outcomes-and-deadlocks.md`.
+4. Send an `In review` notification to alert humans that a PR needs review:
    ```bash
    PR_URL="$(gh pr view --json url --jq .url 2>/dev/null || echo "N/A")"
    ISSUE_NUM="$(gh issue view --json number --jq .number 2>/dev/null || echo "N/A")"
@@ -141,14 +139,14 @@ Follow these steps in strict chronological order to automate issue resolution:
 Always include a final summary of execution containing:
 1. Primary issue processed and its outcome.
 2. Fallback issue processed (only if primary ended in `LOCAL_DEADLOCK` or `IN_REVIEW` with no agent writes) and its outcome.
-3. Tools utilized (`gh`, `linear`, MCP, or scripts).
+3. Tools utilized (`gh`, MCP, or scripts).
 4. Details of any global blockers.
 5. Performed verification steps (CI, reviews, Render preview ping, and E2E).
 
 ## Error Handling & Troubleshooting
 
 Refer to this section when encountering execution issues:
-- **CLI Authentication Failures**: If `gh` or `linear` CLI calls fail due to auth, check if the respective environment tokens (`GITHUB_TOKEN`, `LINEAR_API_KEY`) are loaded. If CLI is unavailable, fallback to MCP commands. If both fail:
+- **CLI Authentication Failures**: If `gh` CLI calls fail due to auth, check if the `GITHUB_TOKEN` environment token is loaded. If CLI is unavailable, fallback to MCP commands. If both fail:
   - Send a global-deadlock notification:
     ```bash
     NOTIFY_MESSAGE="[GLOBAL_BLOCKED] Issue automator halted: CLI + MCP auth both failed for $repo/$issue. Human intervention required." \
