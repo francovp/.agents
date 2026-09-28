@@ -1,4 +1,4 @@
 interface:
   display_name: "Repo Opportunity Scout"
-  short_description: "Analyze repos and open feature issues"
-  default_prompt: "Use $repo-opportunity-scout to analyze a repository, check open issues and PRs first, and create or update prioritized GitHub issues for the best product opportunities."
+  short_description: "Analyze repos and open feature issues (no code changes)"
+  default_prompt: "Use $repo-opportunity-scout to analyze a repository, check open issues and PRs first, and create or update prioritized GitHub issues for the best product opportunities. Create issues only — do not modify any code or repository files."

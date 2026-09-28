@@ -1,6 +1,6 @@
 ---
 name: repo-opportunity-scout
-description: Analyze a repository for product and service opportunities, check existing GitHub issues and pull requests first to avoid duplicates, and create or update GitHub issues for new features and improvements. Use when reviewing a repo for feature gaps, UX friction, reliability or operational problems, or broader product improvements.
+description: Analyze a repository for product and service opportunities, check existing GitHub issues and pull requests first to avoid duplicates, and create or update GitHub issues for new features and improvements. Analysis and issue creation only — this skill never edits code. Use when reviewing a repo for feature gaps, UX friction, reliability or operational problems, or broader product improvements.
 ---
 
 # Repo Opportunity Scout
@@ -9,6 +9,8 @@ description: Analyze a repository for product and service opportunities, check e
 
 Use this skill to turn a repository review into concrete, deduplicated GitHub issue proposals. Focus on product value, not just code health.
 
+This skill is **issue-creation only**. It produces GitHub issues, never code. See [Guardrails](#guardrails) for the hard limits.
+
 ## Workflow
 
 ### 1. Build context
@@ -16,6 +18,7 @@ Use this skill to turn a repository review into concrete, deduplicated GitHub is
 - Read the repo docs and main user flows.
 - Identify the product goal, primary users, and any explicit constraints.
 - Note architecture, platform, release stage, and roadmap signals.
+- Read source, tests, and config only to gather evidence. Reading is fine; changing is not.
 
 ### 2. Check GitHub first
 
@@ -60,6 +63,8 @@ Each issue should include:
 - related issues or PRs
 - label suggestions if the repo uses labels
 
+Each issue must describe the proposed change in words only. Never reference work-in-progress code, commits, or branches as the deliverable — the issue is the deliverable.
+
 If an existing issue is the right home, update its title or description and add a comment documenting the new angle.
 
 ### 6. Report back
@@ -72,6 +77,17 @@ Return a compact summary of:
 - highest-confidence next steps
 
 ## Guardrails
+
+**Never modify code or repository files.** This skill creates and updates GitHub issues only.
+
+- Do not create, edit, delete, or rename source files, tests, configs, or docs.
+- Do not run formatters, codemods, linters with `--fix`, or build steps that rewrite files.
+- Do not install dependencies.
+- Do not create branches, commits, or pull requests.
+- Do not apply a proposed change to the working tree, even for a "quick" or "temporary" fix. Proposals live in the issue body; implementation is someone else's step.
+- Reading files to gather evidence is expected and allowed.
+
+**Issue quality guardrails**
 
 - Do not file speculative issues without repo evidence.
 - Do not split a single cohesive improvement into multiple issues.
