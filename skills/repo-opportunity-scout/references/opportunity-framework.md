@@ -16,12 +16,16 @@
 
 ## Evidence To Collect
 
+Collected by reading only — this framework never produces code changes.
+
 - repo docs and roadmap notes
 - issue and PR history
 - product copy and user-facing flows
 - code paths that handle errors, edge cases, or hot paths
 - tests that reveal missing behavior
 - config, telemetry, or deployment gaps
+
+Cite evidence as file paths, line references, and links in the issue body. Never edit the files you cite.
 
 ## Prioritization
 
@@ -56,3 +60,14 @@ Score each idea using:
   - evidence
   - related issues or PRs
   - risks or dependencies
+
+The issue body is the only deliverable. Describe the change; do not make it.
+
+## Scope Limit
+
+This framework produces GitHub issues and nothing else.
+
+- No source, test, config, or doc edits.
+- No dependency installs, formatters, or codemods.
+- No branches, commits, or pull requests.
+- No "while I'm here" fixes to problems the scan happens to find — file those as separate issues instead.
