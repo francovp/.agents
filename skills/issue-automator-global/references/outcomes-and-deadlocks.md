@@ -1,40 +1,32 @@
-# Outcome Contract and Deadlock Policy
+# Outcomes and Deadlock Policy
 
-This reference defines the required outcomes and the deadlock policy for issue automation.
+End every issue candidate with exactly one outcome. Also report whether the agent made code, issue, or PR writes; that determines whether a fallback is allowed.
 
-## Outcome Contract
+## Outcomes
 
-Every processed issue must end with exactly one of these outcomes:
+- `DONE`: The issue is complete and its GitHub state reflects the result.
+- `IN_REVIEW`: A PR is handed to a human for review and the repository's review state is synchronized.
+- `SHIPPED`: The implementation is already covered by a merged PR or is otherwise shipped.
+- `SYNCED`: Only issue/PR state or labels needed synchronization.
+- `LOCAL_DEADLOCK`: An issue-specific problem prevents safe progress on this item, but does not block other repository work.
+- `GLOBAL_BLOCKED`: Repository-wide access, authentication, or tooling prevents safe work. If a repository uses this label for a single PR deployment blocker, record that its scope is item-specific.
+- `NEEDS_USER`: Progress depends on a user decision or missing information. This is a terminal handoff.
+- `AMBIGUOUS`: The requested result or safe action cannot be determined. This is terminal.
+- `CLAIMED`: A fresh ownership claim belongs to another agent. This is a zero-write outcome; do not edit the issue or its PR.
 
-1. `DONE`: The issue is already completed and trackers were synced.
-2. `IN_REVIEW`: A PR is ready for review and trackers were synced.
-3. `SHIPPED`: The code is already on `master` or covered by a merged PR.
-4. `SYNCED`: Only tracker synchronization was needed.
-5. `LOCAL_DEADLOCK`: The issue is blocked by an issue-specific blocker.
-6. `GLOBAL_BLOCKED`: Tooling, auth, repo, CI, Render, or GitHub access prevents safe work.
-7. `NEEDS_USER`: Safe progress requires user input.
-8. `AMBIGUOUS`: Safe progress requires resolving ambiguity.
+## Fallback Policy
 
-Only a `LOCAL_DEADLOCK` on the primary issue, or an `IN_REVIEW` outcome with no agent writes performed, permits processing the second issue.
+Only an issue selected from the oldest-issue queue may advance to a fallback. An explicitly named issue is always terminal for this run if it is already handled, claimed, blocked, ambiguous, or waiting for user input.
+
+For an unspecified queue selection, at most one fallback is allowed, and only after the primary issue ends with no agent writes as `CLAIMED`, `LOCAL_DEADLOCK`, an item-scoped `GLOBAL_BLOCKED` after one bounded recovery attempt, or pre-existing `IN_REVIEW` that required no agent writes. The run may therefore consider no more than two issue candidates total. Do not inspect later candidates until a fallback is allowed; never continue after the fallback or after any issue/PR/code writes.
+
+`NEEDS_USER`, `AMBIGUOUS`, `DONE`, `SHIPPED`, `SYNCED`, write-producing `IN_REVIEW`, write-producing `GLOBAL_BLOCKED`, and run-wide `GLOBAL_BLOCKED` stop the run.
 
 ## Deadlock Policy
 
-1. **Local Deadlock Definition**: `LOCAL_DEADLOCK` means the issue is blocked by an issue-specific blocker that does not prevent safe work on a different issue.
-2. **Fallback Allowance**: A local deadlock on the primary issue allows exactly one fallback issue. An `IN_REVIEW` outcome with no agent writes also allows exactly one fallback issue. A local deadlock or `IN_REVIEW` (no writes) on the fallback issue stops the run.
-3. **Local Blocker Examples**:
-   - Failed checks that do not converge after the retry budget.
-   - Preview deploy failures after retry budget.
-   - Draft PRs with no safe next action.
-   - Repeated implementation failure with no new evidence.
-   - Closed unmerged PR where safe progress requires reopening or recreating it.
-   - Issue-specific missing requirement that can be documented without blocking all work.
-4. **Actionable PR Work vs Blocker**: Unresolved review threads on an `In review` PR are not a local deadlock; treat them as active PR work.
-5. **Ambiguity/User Input**: Issue ambiguity that requires user input is `AMBIGUOUS` or `NEEDS_USER`, not `LOCAL_DEADLOCK`.
-6. **Global Blockers**: Global blockers prevent safe work in general. Examples:
-   - Missing authentication for both CLI and MCP paths.
-   - Unavailable GitHub, CI, Render, or repository tooling.
-   - Broken local workspace.
-   - Missing repository access.
-   - Failures that prevent safe work in general.
-7. **Resolution**: If a global blocker is encountered, end the run with outcome `GLOBAL_BLOCKED`.
-8. **Limits**: Never retry indefinitely. Never continue past the fallback issue.
+1. Classify a blocker by scope. An issue-specific failed check, preview, or missing acceptance detail is local. A broken GitHub authentication path, unavailable repository access, or workspace/tooling failure that prevents all work is global.
+2. Try an unblock only when a clear, bounded action may change the result. Do not repeat an unchanged failure indefinitely.
+3. If a local blocker remains, write a concise summary with the observed failure and smallest safe next action when the repository workflow supports that update. Release only this session's claim.
+4. For an item-scoped `GLOBAL_BLOCKED`, make one bounded recovery attempt before deciding whether to continue. If GitHub remains available and no agent writes were made, it may use the single fallback. If access to GitHub itself is unavailable, stop with `GLOBAL_BLOCKED`.
+5. A foreign ownership claim is not a blocker to remove. Record `CLAIMED` and leave the issue and PR unchanged.
+6. Missing product authority or materially unclear requirements are `NEEDS_USER` or `AMBIGUOUS`, never `LOCAL_DEADLOCK`.

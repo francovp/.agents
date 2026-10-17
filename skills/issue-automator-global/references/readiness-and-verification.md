@@ -1,40 +1,33 @@
-# Readiness Gate and Verification Policy
+# Readiness and Verification
 
-This reference defines the verification rules, readiness criteria, and quiet window policies for PR submission.
+Use repository instructions and CI configuration as the source of truth. Classify the change before selecting checks.
 
-## Readiness Gate
+## Documentation-Only Changes
 
-A PR is ready to transition to `In review` only if all of these are true:
+A change is documentation-only when it does not alter runtime behavior, tests, scripts, dependencies, API/schema contracts, or build, CI, and deployment configuration. Run relevant documentation checks when configured. Code tests, app startup, code-only checks, and preview verification are `N/A` unless the repository instructions or user explicitly require them. Do not bypass branch protection or claim an unrun check passed.
 
-1. **No Unresolved Discussions**: No open discussions or review threads remain, especially from `@francovp` and `@codex`.
-2. **All Checks Green**: All required checks are green or conclusively non-blocking.
-3. **Preview Live**: The preview deploy is live and operational.
-4. **Direct Verification**: Direct `curl` verification against the Render preview succeeds.
-5. **Criteria Matched**: The implementation matches all issue acceptance criteria.
-6. **No Ownership Conflict**: No active ownership conflicts remain.
-7. **Stability Period**: The head SHA has been stable for at least 5 minutes with no new Codex reviews or unresolved threads appearing.
+## PR Readiness
 
-## Preview and E2E
+Before handing a PR to a human:
 
-1. **Preview URL Scheme**: Construct the preview URL as `https://${RENDER_SERVICE_NAME}-pr-${PR_NUMBER}.onrender.com`. The `RENDER_SERVICE_NAME` is resolved from the `$RENDER_SERVICE_NAME` env var (natively set by Render), falling back to the GitHub repository name, then to a hardcoded default.
-2. **Deploy Proof**: Perform a direct `curl` call against the preview URL as final deploy proof.
-3. **Healthcheck Ping**: Use `/healthcheck` for signaling status.
-4. **Root Route 404s**: Treat `GET /` returning `404` as acceptable only if the service intentionally lacks a root route.
-5. **E2E Executions**: Run the relevant E2E flow against the deployed preview.
-6. **Repeated Failures**: If preview or E2E checks fail repeatedly due to the same issue-specific blocker, end the run with outcome `LOCAL_DEADLOCK`.
+1. Confirm the implementation matches the issue's acceptance criteria.
+2. Confirm applicable tests and required checks pass, or are conclusively non-blocking under repository policy.
+3. Read all actionable review feedback, including inline review threads and top-level comments. Address or explain each unresolved item; paginate when required by the API.
+4. Confirm the PR links the source issue and that no active ownership conflict remains.
+5. Confirm preview and E2E status only when those checks apply to the change and the repository has configured them.
 
-## Retry and Livelock Control
+If any required criterion is uncertain or requires product authority, hand off for human review and record the exact open question. Do not merge unless the user explicitly authorized merging or repository instructions clearly authorize it.
 
-1. **Bounded Loops**: Re-check CI, preview, and review threads in a bounded loop.
-2. **Verification Limit**: Allow at most 3 full verification cycles unless a new concrete change lands.
-3. **Reset Trigger**: If a new concrete change is pushed, reset the verification cycle counter for that issue.
-4. **Repeated Blockers**: If the same blocker persists across cycles, end with outcome `LOCAL_DEADLOCK`.
-5. **Action Duplication**: Do not retry the same failed action unless there is a clear reason it may now succeed.
-6. **Polling Constraints**: Do not keep polling indefinitely during the same run.
+## Preview and E2E Verification
 
-## Quiet Window
+For code changes, use the deployment mechanism configured by the current repository. Resolve a preview URL from its active deployment record or documented resolver; never assume a host from the PR number or from another repository. Verify the relevant health check and changed routes, and compare the deployed revision with the PR head when the platform exposes a revision identifier. Run the repository's relevant E2E flow when configured.
 
-1. **Window Duration**: After the latest commit, wait a quiet window of 5 minutes before calling the PR clean or ready.
-2. **Midpoint & Endpoint Checks**: During the quiet window, re-check reviews and threads once around the midpoint (2.5 minutes) and once at the end.
-3. **Reset Trigger**: If Codex posts a new review or a new thread appears, reset the quiet window from that event or from the new commit (whichever is later).
-4. **Instability Handling**: If the quiet window cannot complete due to repeated issue-specific instability, end with outcome `LOCAL_DEADLOCK`.
+If no preview is configured or available, record preview verification as `N/A` or `unverified`, with the reason. Do not label an unverified deployment healthy. Treat a failing preview as issue-specific only after checking that the URL and deployed revision target the current PR.
+
+## Bounded Retries and Waiting
+
+- Retry an action only when new evidence or a changed state gives it a reasonable chance to succeed.
+- Bound checks and waits according to repository CI/deployment policy. Do not poll continuously or retry indefinitely.
+- Observe a quiet period only when the repository requires one. Check review threads and checks at the documented intervals; do not invent a duration.
+- A new commit may require re-running applicable checks. A new discussion requires a fresh review of that feedback.
+- After repeated issue-specific failures, record `LOCAL_DEADLOCK`; classify failures that block repository-wide access as `GLOBAL_BLOCKED`.
